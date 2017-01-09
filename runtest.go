@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/Xe/asarfilesystem"
+	"github.com/Xe/asarfs"
 )
 
 func do404(w http.ResponseWriter, r *http.Request) {
