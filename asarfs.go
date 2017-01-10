@@ -1,6 +1,7 @@
 package asarfs
 
 import (
+	"io"
 	"mime"
 	"net/http"
 	"os"
@@ -20,6 +21,25 @@ type ASARfs struct {
 // Close closes the underlying file used for the asar archive.
 func (a *ASARfs) Close() error {
 	return a.fin.Close()
+}
+
+// Open satisfies the http.FileSystem interface for ASARfs.
+func (a *ASARfs) Open(name string) (http.File, error) {
+	if name == "/" {
+		name = "/index.html"
+	}
+
+	e := a.ar.Find(strings.Split(name, "/")[1:]...)
+	if e == nil {
+		return nil, os.ErrNotExist
+	}
+
+	f := &file{
+		Entry: e,
+		r:     e.Open(),
+	}
+
+	return f, nil
 }
 
 // ServeHTTP satisfies the http.Handler interface for ASARfs.
@@ -61,4 +81,37 @@ func New(archivePath string, notFound http.Handler) (*ASARfs, error) {
 	}
 
 	return a, nil
+}
+
+// file is an internal shim that mimics http.File for an asar entry.
+type file struct {
+	*asar.Entry
+	r io.ReadSeeker
+}
+
+func (f *file) Close() error {
+	f.r = nil
+	return nil
+}
+
+func (f *file) Read(buf []byte) (n int, err error) {
+	return f.r.Read(buf)
+}
+
+func (f *file) Seek(offset int64, whence int) (int64, error) {
+	return f.r.Seek(offset, whence)
+}
+
+func (f *file) Readdir(count int) ([]os.FileInfo, error) {
+	result := []os.FileInfo{}
+
+	for _, e := range f.Entry.Children {
+		result = append(result, e.FileInfo())
+	}
+
+	return result, nil
+}
+
+func (f *file) Stat() (os.FileInfo, error) {
+	return f.Entry.FileInfo(), nil
 }

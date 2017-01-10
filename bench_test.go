@@ -56,6 +56,32 @@ func BenchmarkPreloadedASARfs(b *testing.B) {
 	}
 }
 
+func BenchmarkASARfsHTTPFilesystem(b *testing.B) {
+	fs, err := New("./static.asar", http.HandlerFunc(do404))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	l, s, err := setupHandler(http.FileServer(fs))
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer l.Close()
+	defer s.Close()
+
+	url := fmt.Sprintf("http://%s", l.Addr())
+
+	for n := 0; n < b.N; n++ {
+		testHandler(url)
+	}
+}
+
+func BenchmarkPreloadedASARfsHTTPFilesystem(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		testHandler(asarfshttpfsurl)
+	}
+}
+
 func do404(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Not found", http.StatusNotFound)
 }
@@ -97,19 +123,34 @@ func testHandler(u string) error {
 }
 
 var (
-	asarfsurl string
+	asarfsurl       string
+	asarfshttpfsurl string
 )
 
 func TestMain(m *testing.M) {
-	fs, err := New("./static.asar", http.HandlerFunc(do404))
-	if err != nil {
-	}
+	go func() {
+		fs, err := New("./static.asar", http.HandlerFunc(do404))
+		if err != nil {
+		}
 
-	l, _, err := setupHandler(fs)
-	if err != nil {
-	}
+		l, _, err := setupHandler(fs)
+		if err != nil {
+		}
 
-	asarfsurl = fmt.Sprintf("http://%s", l.Addr().String())
+		asarfsurl = fmt.Sprintf("http://%s", l.Addr().String())
+	}()
+
+	go func() {
+		fs, err := New("./static.asar", http.HandlerFunc(do404))
+		if err != nil {
+		}
+
+		l, _, err := setupHandler(http.FileServer(fs))
+		if err != nil {
+		}
+
+		asarfshttpfsurl = fmt.Sprintf("http://%s", l.Addr().String())
+	}()
 
 	os.Exit(m.Run())
 }
