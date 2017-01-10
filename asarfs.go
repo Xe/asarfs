@@ -10,16 +10,19 @@ import (
 	"layeh.com/asar"
 )
 
+// ASARfs serves the contents of an asar archive as an HTTP handler.
 type ASARfs struct {
 	fin      *os.File
 	ar       *asar.Entry
 	notFound http.Handler
 }
 
+// Close closes the underlying file used for the asar archive.
 func (a *ASARfs) Close() error {
 	return a.fin.Close()
 }
 
+// ServeHTTP satisfies the http.Handler interface for ASARfs.
 func (a *ASARfs) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.RequestURI == "/" {
 		r.RequestURI = "/index.html"
@@ -38,6 +41,8 @@ func (a *ASARfs) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.WriteTo(w)
 }
 
+// New creates a new ASARfs pointer based on the filepath to the archive and
+// a HTTP handler to hit when a file is not found.
 func New(archivePath string, notFound http.Handler) (*ASARfs, error) {
 	fin, err := os.Open(archivePath)
 	if err != nil {
