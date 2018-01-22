@@ -25,13 +25,15 @@ func (a *ASARfs) Close() error {
 
 // Open satisfies the http.FileSystem interface for ASARfs.
 func (a *ASARfs) Open(name string) (http.File, error) {
-	if name == "/" {
-		name = "/index.html"
-	}
+	var e *asar.Entry
 
-	e := a.ar.Find(strings.Split(name, "/")[1:]...)
-	if e == nil {
-		return nil, os.ErrNotExist
+	if name == "/" {
+		e = a.ar
+	} else {
+		e := a.ar.Find(strings.Split(name, "/")[1:]...)
+		if e == nil {
+			return nil, os.ErrNotExist
+		}
 	}
 
 	f := &file{
